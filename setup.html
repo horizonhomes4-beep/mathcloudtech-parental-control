@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>First-time administrator setup · ParentGuard</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="shell"><h1>🔐 First-time administrator setup</h1><div class="c"><p>This creates the first Super Admin account. Use this only once, on a new Firebase project.</p>
+<label for="adminEmail">Administrator email</label><input id="adminEmail" type="email" autocomplete="username" required>
+<label for="adminPassword">Password (at least 8 characters)</label><input id="adminPassword" type="password" autocomplete="new-password" minlength="8" required>
+<button id="createAdmin">Create Super Admin</button><p id="setupMessage" role="status" aria-live="polite"></p><p><a href="admin.html">Already have an administrator? Sign in</a></p></div></main>
+<script type="module">
+import {auth,db,A,F} from './common.js';
+const emailEl=document.getElementById('adminEmail');
+const passwordEl=document.getElementById('adminPassword');
+const button=document.getElementById('createAdmin');
+const message=document.getElementById('setupMessage');
+function say(text,bad=false){message.className=bad?'off':'on';message.textContent=text;}
+button.addEventListener('click',async()=>{
+ const email=emailEl.value.trim().toLowerCase(),password=passwordEl.value;
+ if(!email||password.length<8){say('Enter a valid email and a password of at least 8 characters.',true);return;}
+ button.disabled=true;say('Creating the first administrator…');
+ try{
+  let credential, recovered=false;
+  try {
+   credential=await A.createUserWithEmailAndPassword(auth,email,password);
+  } catch(createError) {
+   // A previous setup attempt may have created the Auth user before its Firestore
+   // bootstrap batch failed. Sign in with the same credentials and finish that batch.
+   if(createError.code!=='auth/email-already-in-use') throw createError;
+   credential=await A.signInWithEmailAndPassword(auth,email,password);
+   recovered=true;
+  }
+  const uid=credential.user.uid;
+  const batch=F.writeBatch(db);
+  // firestore.rules intentionally permits only {uid} in meta/setup.
+  // The previous build wrote createdAt here, so the entire atomic batch was denied;
+  // Auth succeeded but admins/{uid} was never created, causing admin.html to sign out.
+  batch.set(F.doc(db,'meta','setup'),{uid});
+  batch.set(F.doc(db,'admins',uid),{uid,email,role:'superadmin',createdAt:new Date().toISOString()});
+  await batch.commit();
+  say(recovered?'Administrator account recovered and registered successfully. You can now sign in.':'Super Admin created successfully. You can now open the Admin sign-in page.');
+  button.textContent='Admin ready';
+  const link=document.createElement('a');link.className='b';link.href='admin.html';link.textContent='Open Admin sign in';message.append(document.createElement('br'),link);
+ }catch(error){
+  let msg=error.code||error.message||'Unknown error';
+  if(error.code==='auth/operation-not-allowed')msg='Email/Password sign-in is disabled. In Firebase Console, open Authentication → Sign-in method and enable Email/Password.';
+  else if(error.code==='auth/invalid-credential'||error.code==='auth/wrong-password'||error.code==='auth/user-not-found')msg='This email already has a Firebase Auth account, but the password did not match. Enter the exact password used when the first setup attempt created it. If you no longer know it, reset the password in Firebase Authentication before retrying.';
+  else if(error.code==='permission-denied'||error.code==='firestore/permission-denied')msg='Firestore rejected the bootstrap. Confirm the supplied firestore.rules are deployed to the same Firebase project and that meta/setup has not already been initialized. If setup was already completed, do not run first-time setup again.';
+  say(msg,true);button.disabled=false;
+ }
+});
+</script></body></html>
