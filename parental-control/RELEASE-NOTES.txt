@@ -1,0 +1,96 @@
+@M FAMILY SAFETY GUARD — RELEASE 5.0.0
+
+WINDOWS CLIENT
+- Versioned Windows agent updated to 5.0.0.
+- Stronger device configuration validation.
+- Atomic local-state persistence and product/version status identity.
+- Existing child-account scoping and policy enforcement retained and regression-tested.
+
+INSTALLER
+- Elevated, branded install.bat launcher with clear success/failure messaging.
+- PowerShell wizard supports machine-wide Python discovery and optional winget installation.
+- Rejects unsupported and per-user Python runtimes for SYSTEM task compatibility.
+- Validates all required package files and device-specific Firebase configuration.
+- Creates timestamped upgrade backups.
+- Installs pinned dependencies in an isolated application directory.
+- Applies Windows ACLs to installation and device credentials.
+- Runs Firebase preflight before registering background tasks.
+- Registers SYSTEM startup and watchdog tasks.
+- Requires a fresh running-agent heartbeat before reporting success.
+- Attempts rollback and previous-version restoration after an incomplete upgrade.
+
+TESTING
+- Python unit tests and syntax checks are included in the release validation.
+- Real Windows 10/11, scheduled-task, SYSTEM context, network filtering and live Firebase acceptance tests remain required.
+- This release is not a kernel-level or MDM product and is not claimed to be tamper-proof.
+
+
+@ PARENTGUARD 5.1.0 — ACTIVITY / CONTROL UPDATE
+
+- Parent and administrator dashboards now share responsive visual styling and tactile 3D-style action controls.
+- Immediate Lock now sets a manual restriction; Unlock for 30 minutes temporarily overrides the daily limit and allowed-hours schedule.
+- Screen-time extension can add 15, 30, 60, 120 or 240 minutes to the current day's allowance.
+- Windows agent reports newly observed child application processes in the recent activity feed.
+- Screen-time restriction disconnects only the configured child session instead of logging it off, reducing risk of unsaved work loss.
+- Website blocklist remains visible/editable in each authorized dashboard. HOSTS/DNS blocking cannot show a branded browser warning page; browser interstitial support remains a separate component.
+- Added regression tests for temporary unlock and manual lock policy.
+
+
+@ PARENTGUARD 5.6.0 - REQUESTS / SAVE-FEEDBACK / INSTALLER FIX
+
+FIXES
+- Installer: "Parameter set cannot be resolved using the specified named parameters" is fixed. The pop-up
+  (notice) scheduled task used New-ScheduledTaskPrincipal -GroupId together with -LogonType, which Windows
+  PowerShell does not allow. It now uses -GroupId (BUILTIN\Users) alone. A failure to register the pop-up task
+  is now a warning and no longer rolls back the protection itself.
+- Save settings did nothing on the Admin and Parent pages. The browser-blocking toggles use ids such as
+  "br-chrome.exe"; the unquoted CSS selector for them threw an error before the save ran. Selectors are now
+  quoted, and every save reports success or the exact Firebase error.
+- firestore.rules at the project root was an older copy (no multi-parent support). Both rule files are now identical.
+
+NEW
+- Saving and processing animations: spinner on the clicked button, green tick on success, toast messages, a 15 s
+  timeout so an offline save can never spin forever. Applied to Save settings, lock/unlock/extend, approvals,
+  sign-in and the main admin actions.
+- Child pop-up: "Give me more time" (15/30/60 min), "Please allow <site>" / "Please allow <app>", "Send a message",
+  optional note, and a 20 s countdown before a time-limit lock so the request can be sent. The pop-up shows the
+  parent's answer afterwards.
+- Requests tab on Admin and Parent dashboards with Approve / Decline. Approving time unlocks for that long;
+  approving a site/app adds it to the allowed list.
+- E-mail: requests are e-mailed to the administrator address(es) set on the Admin page and to the child's parents,
+  through the administrator's own EmailJS account (Admin page > Request e-mail notifications).
+
+
+@ PARENTGUARD 5.7.0 - LONGER POP-UP, CLOSE BUTTON, ROW ACTIONS, PARENT VIEW
+
+POP-UP (agent/notice_client.py, agent/agent.py)
+- Red "Close" button at the top right of the full-screen notice. The notice never closes by itself, so it is
+  still on screen after the PC is unlocked and can be closed with Close / I UNDERSTAND / Escape.
+- Time-limit lock countdown raised from 20 s to 45 s (NOTICE_GRACE) so the child has time to send a request.
+- The parent's-answer window now stays 2 minutes (was 20 s).
+- Re-run install.bat on the child PC to upgrade.
+
+DASHBOARDS (web/common.js, web/style.css)
+- Sites visited: every site is one row with Block / Allow (Unblock / Unallow) on the same row; the admin also
+  gets "Hide from parent" (Unhide). Block and Allow save immediately.
+- New "Apps used" list (Apps & games tab) with the same row actions for every app.
+- New admin-only "Parent view" tab: hide whole tabs (Overview, Requests, Live timeline, Sites visited, Website
+  rules, Apps & games, Schedule), the screen-time chart/top apps, Location, or the lock/add-time buttons from the
+  parent. Hidden sites/apps are also removed from the parent's timeline, blocked-attempts list and top apps.
+- NOTE: hiding is done in the dashboard. The parent's account can still read the device record in Firestore.
+  For strict separation, the data would have to be split into admin-only documents in firestore.rules.
+
+
+@ PARENTGUARD 5.8.0 - FINAL POLISH
+- Live timeline: every site and app entry now has Block / Allow (and Hide from parent for the admin) on its row.
+- "Block a website" box (paste any link; it is reduced to its domain) on Sites visited, and "Block an app" on Apps & games.
+- Child pop-up now has a "What is on this device right now" panel: screen time used/left, allowed hours,
+  blocked websites/filters, blocked apps/games.
+- Cleaner row, tab and button styling across both dashboards.
+
+Dashboard + notice window update
+- Live timeline, Sites visited and Apps lists now show each website/app once per day, with a count (e.g. 5x).
+  Click a row to open its history (every time it was visited/started). Open rows stay open when the page refreshes.
+- www.example.com and example.com, Chrome.exe and chrome.exe are treated as the same entry.
+- notice_client.py: new full-screen blockage window with a fixed top bar, card layout, screen-time progress bar,
+  and a vertical scrollbar (mouse wheel, Up/Down/PageUp/PageDown/Home/End) so all content is always reachable.
