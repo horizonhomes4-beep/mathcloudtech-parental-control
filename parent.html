@@ -2,13 +2,13 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Parent dashboard · ParentGuard</title><link rel="stylesheet" href="style.css"></head>
 <body><main class="shell"><div class="top"><h1>👨‍👩‍👧 My children</h1><div id="who"></div></div><div id="app"><div class="c">Connecting to Firebase…</div></div></main>
 <script type="module">
-import {auth,db,A,F,panel,esc,online,J} from './common.js';
+import {auth,db,A,F,panel,esc,online,J,busy} from './common.js';
 const app=document.getElementById('app'),who=document.getElementById('who');let unsubs=[];
 const stop=()=>{unsubs.forEach(u=>u());unsubs=[]};
 function login(message=''){stop();who.innerHTML='';
  app.innerHTML=`<section class="c login"><h2>Parent sign in</h2>${message?`<p class="off">${esc(message)}</p>`:''}<label for="e">Email address</label><input id="e" type="email" autocomplete="username"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password"><button id="go">Sign in</button><p id="m" role="status"></p><p><a href="index.html">Home</a></p></section>`;
  const e=document.getElementById('e'),p=document.getElementById('p'),b=document.getElementById('go'),m=document.getElementById('m');
- const go=async()=>{b.disabled=true;m.textContent='Signing in…';try{await A.signInWithEmailAndPassword(auth,e.value.trim(),p.value)}catch(x){m.className='off';m.textContent=x.code||x.message;b.disabled=false}};
+ const go=()=>busy(b,'Signing in…',async()=>{m.className='';m.textContent='';try{await A.signInWithEmailAndPassword(auth,e.value.trim(),p.value)}catch(x){m.className='off';m.textContent=x.code||x.message}});
  b.onclick=go;p.addEventListener('keydown',x=>{if(x.key==='Enter')go()});}
 A.onAuthStateChanged(auth,async user=>{
  stop();if(!user||user.isAnonymous){login();return;}
